@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Автономный Органайзер</title>
+    <style>
+        :root {
+            --bg-color: #f5f7fa;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --primary-color: #4a90e2;
+            --success-color: #2ec4b6;
+            --danger-color: #ff5c5c;
+            --warning-color: #f39c12;
+            --date-color: #f0f4f8;
+            --date-text: #5c6b73;
+            --border-radius: 12px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding-bottom: 80px;
+        }
+
+        header {
+            background-color: var(--card-bg);
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .container {
+            padding: 15px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .form-group {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            outline: none;
+            background: #fff;
+        }
+
+        textarea {
+            resize: none;
+            height: 100px;
+        }
+
+        button {
+            padding: 12px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:active {
+            opacity: 0.8;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Карточки */
+        .item-card {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            margin-bottom: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .item-main {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex: 1;
+            margin-right: 10px;
+        }
+
+        .todo-left {
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
+
+        .item-text {
+            word-break: break-word;
+            line-height: 1.4;
+            flex: 1;
+            padding: 4px 0;
+        }
+
+        .completed .item-text {
+            text-decoration: line-through;
+            color: #888;
+        }
+
+        .item-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .btn-action {
+            width: 38px;
+            height: 38px;
+            padding: 0;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            flex-shrink: 0;
+        }
+
+        .btn-edit { background-color: var(--warning-color); }
+        .btn-delete { background-color: var(--danger-color); }
+
+        .edit-mode-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 100%;
+        }
+        
+        .edit-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        .btn-save { background-color: var(--success-color); padding: 8px 12px; font-size: 0.9rem;}
+        .btn-cancel { background-color: #aaa; padding: 8px 12px; font-size: 0.9rem;}
+
+        .date-badge {
+            display: inline-block;
+            font-size: 0.8rem;
+            padding: 4px 8px;
+            background-color: var(--date-color);
+            color: var(--date-text);
+            border-radius: 6px;
+            width: fit-content;
+            margin-left: 34px;
+        }
+
+        .date-badge.overdue {
+            background-color: #ffe5e5;
+            color: var(--danger-color);
+            font-weight: bold;
+        }
+
+        .checkbox {
+            width: 22px;
+            height: 22px;
+            margin-right: 12px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        /* Навигация */
+        .nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 65px;
+            background-color: var(--card-bg);
+            display: flex;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+            z-index: 100;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            color: #888;
+            cursor: pointer;
+        }
+
+        .nav-item.active {
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        .nav-icon {
+            font-size: 1.4rem;
+            margin-bottom: 2px;
+        }
+
+        /* Индикатор офлайна для проверки */
+        .offline-status {
+            font-size: 0.75rem;
+            color: #2ec4b6;
+            text-align: center;
+            margin-top: 5px;
+            font-weight: normal;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div id="header-title">Дела</div>
+        <div class="offline-status">Готов к работе офлайн ✨</div>
+    </header>
+
+    <div class="container">
+        
+        <div id="todos-tab" class="tab-content active">
+            <div class="form-group">
+                <input type="text" id="todo-input" placeholder="Что нужно сделать?">
+                <div class="input-row">
+                    <input type="date" id="todo-date">
+                    <button onclick="addItem('todos')" style="flex-shrink: 0; width: 60px;">+</button>
+                </div>
+            </div>
+            <div id="todos-list"></div>
+        </div>
+
+        <div id="goals-tab" class="tab-content">
+            <div class="form-group">
+                <input type="text" id="goal-input" placeholder="Какая цель?">
+                <div class="input-row">
+                    <input type="date" id="goal-date">
+                    <button onclick="addItem('goals')" style="flex-shrink: 0; width: 60px;">+</button>
+                </div>
+            </div>
+            <div id="goals-list"></div>
+        </div>
+
+        <div id="notes-tab" class="tab-content">
+            <div class="form-group">
+                <textarea id="note-input" placeholder="Текст новой заметки..."></textarea>
+                <button onclick="addItem('notes')">Сохранить заметку</button>
+            </div>
+            <div id="notes-list"></div>
+        </div>
+
+    </div>
+
+    <nav class="nav-bar">
+        <div class="nav-item active" onclick="switchTab('todos', this)">
+            <span class="nav-icon">✓</span>
+            <span>Дела</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('goals', this)">
+            <span class="nav-icon">🎯</span>
+            <span>Цели</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('notes', this)">
+            <span class="nav-icon">📝</span>
+            <span>Заметки</span>
+        </div>
+    </nav>
+
+    <script>
+        // --- 1. МАГИЯ ПОЛНОГО ОФЛАЙНА (SERVICE WORKER) ---
+        // Этот скрипт заставляет браузер кэшировать саму страницу. Интернет больше не потребуется.
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                const swCode = `
+                    const CACHE_NAME = 'organizer-cache-v1';
+                    const urlsToCache = [location.pathname, './', index.html];
+
+                    self.addEventListener('install', event => {
+                        event.waitUntil(
+                            caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
+                        );
+                    });
+
+                    self.addEventListener('fetch', event => {
+                        event.respondWith(
+                            caches.match(event.request).then(response => response || fetch(event.request))
+                        );
+                    });
+                `;
+                const blob = new Blob([swCode], { type: 'text/javascript' });
+                const swUrl = URL.createObjectURL(blob);
+                navigator.serviceWorker.register(swUrl).catch(err => console.log('SW setup skipped local'));
+            });
+        }
+
+        // --- 2. ЛОГИКА ПРИЛОЖЕНИЯ И ПАМЯТЬ ---
+        let data = JSON.parse(localStorage.getItem('offlineOrganizerDataFinal')) || {
+            todos: [],
+            goals: [],
+            notes: []
+        };
+
+        let editingItemId = null;
+
+        function saveData() {
+            localStorage.setItem('offlineOrganizerDataFinal', JSON.stringify(data));
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const options = { day: 'numeric', month: 'short', year: 'numeric' };
+            return new Date(dateString).toLocaleDateString('ru-RU', options);
+        }
+
+        function isOverdue(dateString) {
+            if (!dateString) return false;
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const targetDate = new Date(dateString);
+            targetDate.setHours(0,0,0,0);
+            return targetDate < today;
+        }
+
+        function switchTab(tabName, el) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            el.classList.add('active');
+            
+            const titles = { todos: 'Дела', goals: 'Цели', notes: 'Заметки' };
+            document.getElementById('header-title').innerText = titles[tabName];
+            cancelEdit();
+            window.scrollTo(0, 0);
+        }
+
+        function addItem(type) {
+            if (type === 'todos') {
+                const input = document.getElementById('todo-input');
+                const dateInput = document.getElementById('todo-date');
+                if (!input.value.trim()) return;
+                data.todos.push({ id: Date.now(), text: input.value.trim(), date: dateInput.value, completed: false });
+                input.value = ''; dateInput.value = '';
+            } else if (type === 'goals') {
+                const input = document.getElementById('goal-input');
+                const dateInput = document.getElementById('goal-date');
+                if (!input.value.trim()) return;
+                data.goals.push({ id: Date.now(), text: input.value.trim(), date: dateInput.value, completed: false });
+                input.value = ''; dateInput.value = '';
+            } else if (type === 'notes') {
+                const input = document.getElementById('note-input');
+                if (!input.value.trim()) return;
+                data.notes.unshift({ id: Date.now(), text: input.value.trim() });
+                input.value = '';
+            }
+            saveData();
+            renderAll();
+        }
+
+        function deleteItem(type, id) {
+            data[type] = data[type].filter(item => item.id !== id);
+            saveData();
+            renderAll();
+        }
+
+        function toggleItem(type, id) {
+            const item = data[type].find(item => item.id === id);
+            if (item) {
+                item.completed = !item.completed;
+                saveData();
+                renderAll();
+            }
+        }
+
+        function startEdit(type, id) {
+            editingItemId = { type, id };
+            renderAll();
+        }
+
+        function cancelEdit() {
+            editingItemId = null;
+            renderAll();
+        }
+
+        function saveEdit(type, id) {
+            const item = data[type].find(item => item.id === id);
+            if (item) {
+                const newText = document.getElementById(`edit-input-${id}`).value.trim();
+                const newDateInput = document.getElementById(`edit-date-${id}`);
+                
+                if (!newText) return;
+                item.text = newText;
+                
+                if (newDateInput) {
+                    item.date = newDateInput.value;
+                }
+                
+                saveData();
+            }
+            editingItemId = null;
+            renderAll();
+        }
+
+        function renderAll() {
+            renderTodos();
+            renderGoals();
+            renderNotes();
+        }
+
+        function renderTodos() {
+            const list = document.getElementById('todos-list');
+            list.innerHTML = '';
+
+            const sortedTodos = [...data.todos].sort((a, b) => {
+                if (a.completed !== b.completed) return a.completed ? 1 : -1;
+                if (!a.date) return 1;
+                if (!b.date) return -1;
+                return new Date(a.date) - new Date(b.date);
+            });
+
+            if(sortedTodos.length === 0) {
+                list.innerHTML = '<div style="text-align:center; color:#888; margin-top:20px;">Список дел пуст</div>';
+                return;
+            }
+
+            sortedTodos.forEach(todo => {
+                const isEditing = editingItemId && editingItemId.type === 'todos' && editingItemId.id === todo.id;
+                
+                if (isEditing) {
+                    list.innerHTML += `
+                        <div class="item-card">
+                            <div class="edit-mode-container">
+                                <input type="text" id="edit-input-${todo.id}" value="${todo.text}">
+                                <input type="date" id="edit-date-${todo.id}" value="${todo.date || ''}">
+                                <div class="edit-buttons">
+                                    <button class="btn-save" onclick="saveEdit('todos', ${todo.id})">Сохранить</button>
+                                    <button class="btn-cancel" onclick="cancelEdit()">Отмена</button>
+                                </div>
+                            </div>
+                        </div>`;
+                } else {
+                    const isDateOverdue = isOverdue(todo.date) && !todo.completed;
+                    const dateHtml = todo.date ? `<span class="date-badge ${isDateOverdue ? 'overdue' : ''}">📅 ${isDateOverdue ? 'Просрочено: ' : 'Сделать: '} ${formatDate(todo.date)}</span>` : '';
+                    
+                    list.innerHTML += `
+                        <div class="item-card ${todo.completed ? 'completed' : ''}">
+                            <div class="item-main">
+                                <div class="todo-left">
+                                    <input type="checkbox" class="checkbox" ${todo.completed ? 'checked' : ''} onclick="toggleItem('todos', ${todo.id})">
+                                    <span class="item-text">${todo.text}</span>
+                                </div>
+                                ${dateHtml}
+                            </div>
+                            <div class="item-actions">
+                                <button class="btn-action btn-edit" onclick="startEdit('todos', ${todo.id})">✏️</button>
+                                <button class="btn-action btn-delete" onclick="deleteItem('todos', ${todo.id})">✕</button>
+                            </div>
+                        </div>`;
+                }
+            });
+        }
+
+        function renderGoals() {
+            const list = document.getElementById('goals-list');
+            list.innerHTML = '';
+
+            if(data.goals.length === 0) {
+                list.innerHTML = '<div style="text-align:center; color:#888; margin-top:20px;">Целей пока нет</div>';
+                return;
+            }
+
+            data.goals.forEach(goal => {
+                const isEditing = editingItemId && editingItemId.type === 'goals' && editingItemId.id === goal.id;
+                
+                if (isEditing) {
+                    list.innerHTML += `
+                        <div class="item-card">
+                            <div class="edit-mode-container">
+                                <input type="text" id="edit-input-${goal.id}" value="${goal.text}">
+                                <input type="date" id="edit-date-${goal.id}" value="${goal.date || ''}">
+                                <div class="edit-buttons">
+                                    <button class="btn-save" onclick="saveEdit('goals', ${goal.id})">Сохранить</button>
+                                    <button class="btn-cancel" onclick="cancelEdit()">Отмена</button>
+                                </div>
+                            </div>
+                        </div>`;
+                } else {
+                    const isGoalOverdue = isOverdue(goal.date) && !goal.completed;
+                    const dateHtml = goal.date ? `<span class="date-badge ${isGoalOverdue ? 'overdue' : ''}">🎯 Дедлайн: ${formatDate(goal.date)}</span>` : '';
+
+                    list.innerHTML += `
+                        <div class="item-card ${goal.completed ? 'completed' : ''}">
+                            <div class="item-main">
+                                <div class="todo-left">
+                                    <input type="checkbox" class="checkbox" ${goal.completed ? 'checked' : ''} onclick="toggleItem('goals', ${goal.id})">
+                                    <span class="item-text"><b>${goal.text}</b></span>
+                                </div>
+                                ${dateHtml}
+                            </div>
+                            <div class="item-actions">
+                                <button class="btn-action btn-edit" onclick="startEdit('goals', ${goal.id})">✏️</button>
+                                <button class="btn-action btn-delete" onclick="deleteItem('goals', ${goal.id})">✕</button>
+                            </div>
+                        </div>`;
+                }
+            });
+        }
+
+        function renderNotes() {
+            const list = document.getElementById('notes-list');
+            list.innerHTML = '';
+
+            if(data.notes.length === 0) {
+                list.innerHTML = '<div style="text-align:center; color:#888; margin-top:20px;">Заметок нет</div>';
+                return;
+            }
+
+            data.notes.forEach(note => {
+                const isEditing = editingItemId && editingItemId.type === 'notes' && editingItemId.id === note.id;
+                
+                if (isEditing) {
+                    list.innerHTML += `
+                        <div class="item-card">
+                            <div class="edit-mode-container">
+                                <textarea id="edit-input-${note.id}">${note.text}</textarea>
+                                <div class="edit-buttons">
+                                    <button class="btn-save" onclick="saveEdit('notes', ${note.id})">Сохранить</button>
+                                    <button class="btn-cancel" onclick="cancelEdit()">Отмена</button>
+                                </div>
+                            </div>
+                        </div>`;
+                } else {
+                    list.innerHTML += `
+                        <div class="item-card">
+                            <div class="item-main">
+                                <span class="item-text" style="white-space: pre-wrap;">${note.text}</span>
+                            </div>
+                            <div class="item-actions">
+                                <button class="btn-action btn-edit" onclick="startEdit('notes', ${note.id})">✏️</button>
+                                <button class="btn-action btn-delete" onclick="deleteItem('notes', ${note.id})">✕</button>
+                            </div>
+                        </div>`;
+                }
+            });
+        }
+
+        renderAll();
+    </script>
+</body>
+</html>
