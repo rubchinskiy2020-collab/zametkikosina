@@ -58,7 +58,6 @@
             margin: 0 auto;
         }
 
-        /* Форма ввода в стиле iOS */
         .form-group {
             background: var(--ios-card);
             padding: 16px;
@@ -94,7 +93,6 @@
             height: 110px;
         }
 
-        /* Кнопки */
         button {
             padding: 12px;
             background-color: var(--ios-blue);
@@ -120,7 +118,6 @@
             display: block;
         }
 
-        /* Карточки Apple Style */
         .item-card {
             background: var(--ios-card);
             padding: 16px;
@@ -159,7 +156,6 @@
             color: var(--ios-subtext);
         }
 
-        /* Кнопки управления (квадратные со стилем iOS) */
         .item-actions {
             display: flex;
             gap: 8px;
@@ -182,11 +178,9 @@
         .btn-edit { background-color: #fff3cd; color: var(--ios-orange); }
         .btn-delete { background-color: #ffe5e5; color: var(--ios-red); }
         
-        /* В активном режиме */
         .btn-edit:active { background-color: var(--ios-orange); color: white; }
         .btn-delete:active { background-color: var(--ios-red); color: white; }
 
-        /* Контейнер редактирования */
         .edit-mode-container {
             display: flex;
             flex-direction: column;
@@ -201,7 +195,6 @@
         .btn-save { background-color: var(--ios-green); color: white; }
         .btn-cancel { background-color: #e5e5ea; color: #000000; }
 
-        /* Календарные теги */
         .date-badge {
             display: inline-block;
             font-size: 0.8rem;
@@ -220,7 +213,6 @@
             font-weight: 600;
         }
 
-        /* Кастомный круглый чекбокс iOS */
         .checkbox {
             -webkit-appearance: none;
             appearance: none;
@@ -250,7 +242,6 @@
             font-weight: bold;
         }
 
-        /* Нижний Tab Bar (Эппл-стиль) */
         .nav-bar {
             position: fixed;
             bottom: 0;
@@ -297,31 +288,28 @@
 
     <div class="container">
         
-        <!-- ДЕЛА -->
         <div id="todos-tab" class="tab-content active">
             <div class="form-group">
                 <input type="text" id="todo-input" placeholder="Название задачи">
                 <div class="input-row">
-                    <input type="date" id="todo-date">
+                    <input type="text" id="todo-date" placeholder="Дата" onfocus="(this.type='date')" onblur="if(!this.value)this.type='text'">
                     <button onclick="addItem('todos')" style="flex-shrink: 0; padding: 0 20px;">Добавить</button>
                 </div>
             </div>
             <div id="todos-list"></div>
         </div>
 
-        <!-- ЦЕЛИ -->
         <div id="goals-tab" class="tab-content">
             <div class="form-group">
                 <input type="text" id="goal-input" placeholder="Какая цель?">
                 <div class="input-row">
-                    <input type="date" id="goal-date">
+                    <input type="text" id="goal-date" placeholder="Дедлайн" onfocus="(this.type='date')" onblur="if(!this.value)this.type='text'">
                     <button onclick="addItem('goals')" style="flex-shrink: 0; padding: 0 20px;">Добавить</button>
                 </div>
             </div>
             <div id="goals-list"></div>
         </div>
 
-        <!-- ЗАМЕТКИ -->
         <div id="notes-tab" class="tab-content">
             <div class="form-group">
                 <textarea id="note-input" placeholder="Новая заметка..."></textarea>
@@ -332,7 +320,6 @@
 
     </div>
 
-    <!-- iOS Tab Bar -->
     <nav class="nav-bar">
         <div class="nav-item active" onclick="switchTab('todos', this)">
             <span class="nav-icon">⊙</span>
@@ -349,11 +336,10 @@
     </nav>
 
     <script>
-        // Код Service Worker для полной автономности
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 const swCode = `
-                    const CACHE_NAME = 'organizer-apple-v1';
+                    const CACHE_NAME = 'organizer-apple-v2';
                     const urlsToCache = [location.pathname, './', 'index.html'];
                     self.addEventListener('install', e => e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(urlsToCache))));
                     self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
@@ -398,13 +384,13 @@
                 const dateInput = document.getElementById('todo-date');
                 if (!input.value.trim()) return;
                 data.todos.push({ id: Date.now(), text: input.value.trim(), date: dateInput.value, completed: false });
-                input.value = ''; dateInput.value = '';
+                input.value = ''; dateInput.type = 'text'; dateInput.value = '';
             } else if (type === 'goals') {
                 const input = document.getElementById('goal-input');
                 const dateInput = document.getElementById('goal-date');
                 if (!input.value.trim()) return;
                 data.goals.push({ id: Date.now(), text: input.value.trim(), date: dateInput.value, completed: false });
-                input.value = ''; dateInput.value = '';
+                input.value = ''; dateInput.type = 'text'; dateInput.value = '';
             } else if (type === 'notes') {
                 const input = document.getElementById('note-input');
                 if (!input.value.trim()) return;
@@ -451,7 +437,7 @@
                         <div class="item-card">
                             <div class="edit-mode-container">
                                 <input type="text" id="edit-input-${todo.id}" value="${todo.text}">
-                                <input type="date" id="edit-date-${todo.id}" value="${todo.date || ''}">
+                                <input type="${todo.date ? 'date' : 'text'}" id="edit-date-${todo.id}" value="${todo.date || ''}" placeholder="Дата" onfocus="(this.type='date')" onblur="if(!this.value)this.type='text'">
                                 <div class="edit-buttons">
                                     <button class="btn-save" onclick="saveEdit('todos', ${todo.id})">Готово</button>
                                     <button class="btn-cancel" onclick="cancelEdit()">Отмена</button>
@@ -490,7 +476,7 @@
                         <div class="item-card">
                             <div class="edit-mode-container">
                                 <input type="text" id="edit-input-${goal.id}" value="${goal.text}">
-                                <input type="date" id="edit-date-${goal.id}" value="${goal.date || ''}">
+                                <input type="${goal.date ? 'date' : 'text'}" id="edit-date-${goal.id}" value="${goal.date || ''}" placeholder="Дедлайн" onfocus="(this.type='date')" onblur="if(!this.value)this.type='text'">
                                 <div class="edit-buttons">
                                     <button class="btn-save" onclick="saveEdit('goals', ${goal.id})">Готово</button>
                                     <button class="btn-cancel" onclick="cancelEdit()">Отмена</button>
