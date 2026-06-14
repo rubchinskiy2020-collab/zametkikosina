@@ -31,7 +31,7 @@
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--ios-bg);
             color: var(--ios-text);
-            padding-bottom: 90px;
+            padding-bottom: 110px;
             letter-spacing: -0.4px;
         }
 
@@ -110,6 +110,52 @@
             opacity: 0.7;
         }
 
+        /* Кнопки переключения режимов внутри заметок */
+        .notes-mode-selector {
+            display: flex;
+            background: #e5e5ea;
+            padding: 2px;
+            border-radius: 9px;
+            margin-bottom: 12px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            background: transparent;
+            color: #000;
+            padding: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border-radius: 7px;
+        }
+
+        .mode-btn.active {
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        /* Зона рисования */
+        .canvas-container {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        canvas {
+            background: #fff;
+            border: 1px solid var(--ios-border);
+            border-radius: var(--radius-input);
+            width: 100%;
+            height: 200px;
+            touch-action: none; /* Отключает скролл экрана при рисовании пальцем */
+        }
+
+        .canvas-tools {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
         .tab-content {
             display: none;
         }
@@ -135,6 +181,7 @@
             gap: 6px;
             flex: 1;
             margin-right: 12px;
+            overflow: hidden;
         }
 
         .todo-left {
@@ -154,6 +201,13 @@
         .completed .item-text {
             text-decoration: line-through;
             color: var(--ios-subtext);
+        }
+
+        .note-img {
+            max-width: 100%;
+            border-radius: 8px;
+            background: #f9f9f9;
+            border: 0.5px solid var(--ios-border);
         }
 
         .item-actions {
@@ -242,6 +296,27 @@
             font-weight: bold;
         }
 
+        .reset-container {
+            text-align: center;
+            margin-top: 25px;
+            margin-bottom: 15px;
+        }
+
+        .btn-reset-all {
+            background: none;
+            color: var(--ios-red);
+            font-size: 0.95rem;
+            font-weight: 500;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: background-color 0.2s ease;
+        }
+
+        .btn-reset-all:active {
+            background-color: #ffe5e5;
+            opacity: 1;
+        }
+
         .nav-bar {
             position: fixed;
             bottom: 0;
@@ -297,6 +372,9 @@
                 </div>
             </div>
             <div id="todos-list"></div>
+            <div id="todos-reset-block" class="reset-container" style="display: none;">
+                <button class="btn-reset-all" onclick="resetTabList('todos')">Сбросить список</button>
+            </div>
         </div>
 
         <div id="goals-tab" class="tab-content">
@@ -308,14 +386,35 @@
                 </div>
             </div>
             <div id="goals-list"></div>
+            <div id="goals-reset-block" class="reset-container" style="display: none;">
+                <button class="btn-reset-all" onclick="resetTabList('goals')">Сбросить список</button>
+            </div>
         </div>
 
         <div id="notes-tab" class="tab-content">
             <div class="form-group">
-                <textarea id="note-input" placeholder="Новая заметка..."></textarea>
-                <button onclick="addItem('notes')" style="width: 100%; margin-top: 10px;">Сохранить</button>
+                <div class="notes-mode-selector">
+                    <button class="mode-btn active" id="mode-text-btn" onclick="setNoteMode('text')">Текст</button>
+                    <button class="mode-btn" id="mode-draw-btn" onclick="setNoteMode('draw')">Рисунок</button>
+                </div>
+
+                <div id="note-text-container">
+                    <textarea id="note-input" placeholder="Новая заметка..."></textarea>
+                    <button onclick="addItem('notes')" style="width: 100%; margin-top: 10px;">Сохранить заметку</button>
+                </div>
+
+                <div id="note-draw-container" class="canvas-container">
+                    <canvas id="paintCanvas"></canvas>
+                    <div class="canvas-tools">
+                        <button onclick="clearCanvas()" style="background-color: #e5e5ea; color: #000; width: 45%;">Очистить</button>
+                        <button onclick="saveCanvasNote()" style="width: 50%;">Сохранить набросок</button>
+                    </div>
+                </div>
             </div>
             <div id="notes-list"></div>
+            <div id="notes-reset-block" class="reset-container" style="display: none;">
+                <button class="btn-reset-all" onclick="resetTabList('notes')">Сбросить список</button>
+            </div>
         </div>
 
     </div>
@@ -336,10 +435,11 @@
     </nav>
 
     <script>
+        // Фоновое кэширование (Service Worker)
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 const swCode = `
-                    const CACHE_NAME = 'organizer-apple-v2';
+                    const CACHE_NAME = 'organizer-apple-v4';
                     const urlsToCache = [location.pathname, './', 'index.html'];
                     self.addEventListener('install', e => e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(urlsToCache))));
                     self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
@@ -351,6 +451,12 @@
 
         let data = JSON.parse(localStorage.getItem('appleOrganizerData')) || { todos: [], goals: [], notes: [] };
         let editingItemId = null;
+        let noteMode = 'text'; // 'text' или 'draw'
+
+        // Настройки рисования
+        const canvas = document.getElementById('paintCanvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
 
         function saveData() { localStorage.setItem('appleOrganizerData', JSON.stringify(data)); }
 
@@ -375,9 +481,91 @@
             const titles = { todos: 'Дела', goals: 'Цели', notes: 'Заметки' };
             document.querySelector('header h1').innerText = titles[tabName];
             cancelEdit();
+            if(tabName === 'notes') initCanvasSize();
             window.scrollTo(0, 0);
         }
 
+        // Переключение Текст / Рисунок в заметках
+        function setNoteMode(mode) {
+            noteMode = mode;
+            document.getElementById('mode-text-btn').classList.toggle('active', mode === 'text');
+            document.getElementById('mode-draw-btn').classList.toggle('active', mode === 'draw');
+            document.getElementById('note-text-container').style.display = mode === 'text' ? 'block' : 'none';
+            document.getElementById('note-draw-container').style.display = mode === 'draw' ? 'flex' : 'none';
+            if(mode === 'draw') initCanvasSize();
+        }
+
+        // --- ИНИЦИАЛИЗАЦИЯ ХОЛСТА И ЛОГИКА РИСОВАНИЯ ---
+        function initCanvasSize() {
+            // Подгоняем внутреннее разрешение холста под физические размеры экрана
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = 220; 
+            
+            // Настройки кисти
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+        }
+
+        // Функции рисования (поддержка мыши и тач-скринов телефонов)
+        function startDrawing(e) {
+            isDrawing = true;
+            draw(e);
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+            ctx.beginPath();
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            e.preventDefault();
+            
+            // Получаем координаты пальца или мыши относительно холста
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        // Слушатели событий рисования
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        window.addEventListener('mouseup', stopDrawing);
+
+        canvas.addEventListener('touchstart', startDrawing);
+        canvas.addEventListener('touchmove', draw);
+        window.addEventListener('touchend', stopDrawing);
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function saveCanvasNote() {
+            // Проверяем, не пустой ли холст (был ли рисунок)
+            const blank = document.createElement('canvas');
+            blank.width = canvas.width;
+            blank.height = canvas.height;
+            if (canvas.toDataURL() === blank.toDataURL()) return; // Если пустой — не сохраняем
+
+            const imgDataUrl = canvas.toDataURL();
+            data.notes.unshift({ id: Date.now(), text: '', image: imgDataUrl });
+            saveData();
+            clearCanvas();
+            renderAll();
+        }
+
+        // --- ОБЩЕЕ ДОБАВЛЕНИЕ ЭЛЕМЕНТОВ ---
         function addItem(type) {
             if (type === 'todos') {
                 const input = document.getElementById('todo-input');
@@ -408,17 +596,36 @@
         function saveEdit(type, id) {
             const item = data[type].find(i => i.id === id);
             if (item) {
-                const newText = document.getElementById(`edit-input-${id}`).value.trim();
+                const editInput = document.getElementById(`edit-input-${id}`);
+                if (editInput) {
+                    const newText = editInput.value.trim();
+                    if (!newText) return;
+                    item.text = newText;
+                }
                 const newDate = document.getElementById(`edit-date-${id}`);
-                if (!newText) return;
-                item.text = newText;
                 if (newDate) item.date = newDate.value;
                 saveData();
             }
             editingItemId = null; renderAll();
         }
 
-        function renderAll() { renderTodos(); renderGoals(); renderNotes(); }
+        function resetTabList(type) {
+            if (confirm("Вы уверены, что хотите полностью очистить этот список?")) {
+                data[type] = [];
+                saveData();
+                renderAll();
+            }
+        }
+
+        function toggleResetButton(type) {
+            const btnBlock = document.getElementById(`${type}-reset-block`);
+            btnBlock.style.display = (data[type] && data[type].length > 0) ? 'block' : 'none';
+        }
+
+        function renderAll() { 
+            renderTodos(); renderGoals(); renderNotes(); 
+            toggleResetButton('todos'); toggleResetButton('goals'); toggleResetButton('notes');
+        }
 
         function renderTodos() {
             const list = document.getElementById('todos-list'); list.innerHTML = '';
@@ -522,13 +729,18 @@
                             </div>
                         </div>`;
                 } else {
+                    // Проверяем: текстовая заметка или графический набросок
+                    const contentHtml = note.image 
+                        ? `<img src="${note.image}" class="note-img" alt="Набросок">`
+                        : `<span class="item-text" style="white-space: pre-wrap;">${note.text}</span>`;
+                    
                     list.innerHTML += `
                         <div class="item-card">
                             <div class="item-main">
-                                <span class="item-text" style="white-space: pre-wrap;">${note.text}</span>
+                                ${contentHtml}
                             </div>
                             <div class="item-actions">
-                                <button class="btn-action btn-edit" onclick="startEdit('notes', ${note.id})">✏️</button>
+                                ${note.image ? '' : `<button class="btn-action btn-edit" onclick="startEdit('notes', ${note.id})">✏️</button>`}
                                 <button class="btn-action btn-delete" onclick="deleteItem('notes', ${note.id})">✕</button>
                             </div>
                         </div>`;
@@ -536,6 +748,7 @@
             });
         }
 
+        // Инициализация при первом запуске
         renderAll();
     </script>
 </body>
